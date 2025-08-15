@@ -5,68 +5,114 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Tatehama_tetudou_denwa_PCclient"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid x:Name="UI">
-        <Grid.Background>
-            <ImageBrush ImageSource="/image/tetudoudenwa.png"/>
-        </Grid.Background>
+        Title="鉄道電話" Height="450" Width="800">
+    <Grid>
+        <!-- 背景画像 -->
+        <Image Source="/image/tetudoudenwa.png" Stretch="Fill"/>
 
-        <TextBlock x:Name="NumberDisplay" 
-                   Margin="381,206,288,0" 
-                   Height="42" 
-                   VerticalAlignment="Top"
-                   Background="White" 
-                   Foreground="Black" 
-                   TextAlignment="Right"
-                   FontSize="20"
-                   Padding="5,0"/>
+        <!-- UI要素を配置するCanvas -->
+        <Canvas>
+            <!-- ボタンテンプレートを先に定義 -->
+            <Canvas.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Grid Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </Canvas.Resources>
 
-        <ListView x:Name="CallList" Margin="51,83,495,36" Background="White" Foreground="Black" BorderBrush="Black">
-            <ListViewItem Content="総合司令"/>
-            <ListViewItem Content="館浜駅乗務員詰所"/>
-            <ListViewItem Content="大道寺列車区"/>
-            <ListViewItem Content="赤山町駅乗務員詰所"/>
-            <ListViewItem Content="館浜"/>
-            <ListViewItem Content="駒野"/>
-            <ListViewItem Content="河原崎"/>
-            <ListViewItem Content="海岸公園"/>
-            <ListViewItem Content="虹ケ浜"/>
-            <ListViewItem Content="津崎"/>
-            <ListViewItem Content="浜園"/>
-            <ListViewItem Content="羽衣橋"/>
-            <ListViewItem Content="新井川"/>
-            <ListViewItem Content="新野崎"/>
-            <ListViewItem Content="江ノ原"/>
-            <ListViewItem Content="大道寺"/>
-            <ListViewItem Content="藤江"/>
-            <ListViewItem Content="水越"/>
-            <ListViewItem Content="高見沢"/>
-            <ListViewItem Content="日野森"/>
-            <ListViewItem Content="奥峰口"/>
-            <ListViewItem Content="西赤山"/>
-            <ListViewItem Content="赤山町"/>
-        </ListView>
+            <!-- 発信先リスト -->
+            <ListView x:Name="CallList" Canvas.Left="51" Canvas.Top="83" Width="254" Height="331" 
+                      Background="White" Foreground="Black" BorderBrush="Black" 
+                      SelectionChanged="CallList_SelectionChanged">
+                <ListViewItem Content="総合司令"/>
+                <ListViewItem Content="館浜駅乗務員詰所"/>
+                <ListViewItem Content="大道寺列車区"/>
+                <ListViewItem Content="赤山町駅乗務員詰所"/>
+                <ListViewItem Content="館浜"/>
+                <ListViewItem Content="駒野"/>
+                <ListViewItem Content="河原崎"/>
+                <ListViewItem Content="海岸公園"/>
+                <ListViewItem Content="虹ケ浜"/>
+                <ListViewItem Content="津崎"/>
+                <ListViewItem Content="浜園"/>
+                <ListViewItem Content="羽衣橋"/>
+                <ListViewItem Content="新井川"/>
+                <ListViewItem Content="新野崎"/>
+                <ListViewItem Content="江ノ原"/>
+                <ListViewItem Content="大道寺"/>
+                <ListViewItem Content="藤江"/>
+                <ListViewItem Content="水越"/>
+                <ListViewItem Content="高見沢"/>
+                <ListViewItem Content="日野森"/>
+                <ListViewItem Content="奥峰口"/>
+                <ListViewItem Content="西赤山"/>
+                <ListViewItem Content="赤山町"/>
+            </ListView>
 
-        <Canvas x:Name="テンキー1" Margin="370,258,277,2">
-            <Image x:Name="syoukyo" Source="/image/syoukyo.png" Stretch="Fill" Height="42" Canvas.Top="133" Width="49"/>
-            <Image x:Name="_0" Source="/image/zero.png" Stretch="Fill" Height="41" Canvas.Left="52" Canvas.Top="133" Width="49"/>
-            <Image x:Name="_1" Source="/image/iti.png" Stretch="Fill" Height="41" Canvas.Top="89" Width="49"/>
-            <Image x:Name="_2" Source="/image/ni.png" Stretch="Fill" Height="41" Canvas.Left="52" Canvas.Top="89" Width="49"/>
-            <Image x:Name="_3" Source="/image/san.png" Stretch="Fill" Height="41" Canvas.Left="105" Canvas.Top="89" Width="48"/>
-            <Image x:Name="_4" Source="/image/yon.png" Stretch="Fill" Height="42" Canvas.Top="44" Width="49"/>
-            <Image x:Name="_5" Source="/image/go.png" Stretch="Fill" Height="42" Canvas.Left="52" Canvas.Top="44" Width="49"/>
-            <Image x:Name="_6" Source="/image/roku.png" Stretch="Fill" Height="42" Canvas.Left="105" Canvas.Top="44" Width="48"/>
-            <Image x:Name="_7" Source="/image/nana.png" Stretch="Fill" Height="41" Width="49"/>
-            <Image x:Name="_8" Source="/image/hachi.png" Stretch="Fill" Height="41" Canvas.Left="52" Width="49"/>
-            <Image x:Name="_9" Source="/image/kyuu.png" Stretch="Fill" Height="41" Canvas.Left="105" Width="48"/>
+            <!-- 表示部 -->
+            <TextBlock x:Name="StatusDisplay" Canvas.Left="381" Canvas.Top="179" Width="131" Height="25"
+                       Background="White" Foreground="Black" TextAlignment="Center" FontSize="16" Text="待機中" Padding="5,0"/>
+            <TextBlock x:Name="NumberDisplay" Canvas.Left="381" Canvas.Top="206" Width="131" Height="42"
+                       Background="White" Foreground="Black" TextAlignment="Right" FontSize="20" Padding="5,0"/>
 
+            <!-- テンキー -->
+            <Canvas Canvas.Left="370" Canvas.Top="258">
+                <Button x:Name="ButtonSyoukyo" Canvas.Top="133" Width="49" Height="42" Click="Syoukyo_Click">
+                    <Image Source="/image/syoukyo.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button0" Canvas.Left="52" Canvas.Top="133" Width="49" Height="41" Click="Keypad_Click" Tag="0">
+                    <Image Source="/image/zero.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button1" Canvas.Top="89" Width="49" Height="41" Click="Keypad_Click" Tag="1">
+                    <Image Source="/image/iti.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button2" Canvas.Left="52" Canvas.Top="89" Width="49" Height="41" Click="Keypad_Click" Tag="2">
+                    <Image Source="/image/ni.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button3" Canvas.Left="105" Canvas.Top="89" Width="48" Height="41" Click="Keypad_Click" Tag="3">
+                    <Image Source="/image/san.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button4" Canvas.Top="44" Width="49" Height="42" Click="Keypad_Click" Tag="4">
+                    <Image Source="/image/yon.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button5" Canvas.Left="52" Canvas.Top="44" Width="49" Height="42" Click="Keypad_Click" Tag="5">
+                    <Image Source="/image/go.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button6" Canvas.Left="105" Canvas.Top="44" Width="48" Height="42" Click="Keypad_Click" Tag="6">
+                    <Image Source="/image/roku.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button7" Width="49" Height="41" Click="Keypad_Click" Tag="7">
+                    <Image Source="/image/nana.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button8" Canvas.Left="52" Width="49" Height="41" Click="Keypad_Click" Tag="8">
+                    <Image Source="/image/hachi.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="Button9" Canvas.Left="105" Width="48" Height="41" Click="Keypad_Click" Tag="9">
+                    <Image Source="/image/kyuu.png" Stretch="Fill"/>
+                </Button>
+            </Canvas>
+
+            <!-- 操作ボタン -->
+            <Canvas Canvas.Left="549" Canvas.Top="363">
+                <Button x:Name="ButtonJyuwa" Width="75" Height="72" Click="Jyuwa_Click">
+                    <Image Source="/image/jyuwa.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="ButtonHashin" Canvas.Left="77" Width="75" Height="72" Click="Hashin_Click">
+                    <Image Source="/image/hashin.png" Stretch="Fill"/>
+                </Button>
+                <Button x:Name="ButtonSyuwa" Canvas.Left="154" Width="78" Height="72" Click="Syuwa_Click">
+                    <Image Source="/image/syuwa.png" Stretch="Fill"/>
+                </Button>
+            </Canvas>
         </Canvas>
-        <Canvas x:Name="ボタン" Margin="549,363,19,0">
-            <Image x:Name="jyuwa" Source="/image/jyuwa.png" Stretch="Fill" Height="72" Width="75"/>
-            <Image x:Name="syuwa" Source="/image/syuwa.png" Stretch="Fill" Height="72" Canvas.Left="154" Width="78"/>
-            <Image x:Name="hashin" Source="/image/hashin.png" Stretch="Fill" Height="72" Canvas.Left="77" Width="75"/>
-
-        </Canvas>
-
     </Grid>
 </Window>
