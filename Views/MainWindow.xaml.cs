@@ -44,16 +44,16 @@ namespace Tatehama_tetudou_denwa_PCclient
             }
         }
 
-        private void Keypad_Click(object sender, RoutedEventArgs e)
+        private void Keypad_MouseDown(object sender, MouseButtonEventArgs e)
         {
             PlaySound(_pushSound);
-            if (sender is Button button && button.Tag != null)
+            if (sender is Image image && image.Tag != null)
             {
-                NumberDisplay.Text += button.Tag.ToString();
+                NumberDisplay.Text += image.Tag.ToString();
             }
         }
 
-        private void Syoukyo_Click(object sender, RoutedEventArgs e)
+        private void Syoukyo_MouseDown(object sender, MouseButtonEventArgs e)
         {
             PlaySound(_pushSound);
             if (!string.IsNullOrEmpty(NumberDisplay.Text))
@@ -81,13 +81,13 @@ namespace Tatehama_tetudou_denwa_PCclient
             }
         }
 
-        private void Jyuwa_Click(object sender, RoutedEventArgs e)
+        private void Jyuwa_MouseDown(object sender, MouseButtonEventArgs e)
         {
             PlaySound(_toriSound);
             StatusDisplay.Text = "受話器上げ";
         }
 
-        private void Syuwa_Click(object sender, RoutedEventArgs e)
+        private void Syuwa_MouseDown(object sender, MouseButtonEventArgs e)
         {
             PlaySound(_okiSound);
             NumberDisplay.Text = "";
@@ -97,10 +97,20 @@ namespace Tatehama_tetudou_denwa_PCclient
             _denshiberuSound.Stop();
         }
 
-        private void Hashin_Click(object sender, RoutedEventArgs e)
+        private void Hashin_MouseDown(object sender, MouseButtonEventArgs e)
         {
             StatusDisplay.Text = "呼び出し中...";
             PlaySound(_yobidashityuuSound);
+        }
+
+        private void ChangeWorkplace_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("勤務地変更がクリックされました。");
+        }
+
+        private void Settings_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("設定がクリックされました。");
         }
     }
 }
