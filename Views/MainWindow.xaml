@@ -1,4 +1,4 @@
-﻿<Window x:Class="Tatehama_tetudou_denwa_PCclient.MainWindow"
+<Window x:Class="Tatehama_tetudou_denwa_PCclient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -6,7 +6,67 @@
         xmlns:local="clr-namespace:Tatehama_tetudou_denwa_PCclient"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid>
+    <Grid x:Name="UI">
+        <Grid.Background>
+            <ImageBrush ImageSource="/image/tetudoudenwa.png"/>
+        </Grid.Background>
+
+        <TextBlock x:Name="NumberDisplay" 
+                   Margin="381,206,288,0" 
+                   Height="42" 
+                   VerticalAlignment="Top"
+                   Background="White" 
+                   Foreground="Black" 
+                   TextAlignment="Right"
+                   FontSize="20"
+                   Padding="5,0"/>
+
+        <ListView x:Name="CallList" Margin="51,83,495,36" Background="White" Foreground="Black" BorderBrush="Black">
+            <ListViewItem Content="総合司令"/>
+            <ListViewItem Content="館浜駅乗務員詰所"/>
+            <ListViewItem Content="大道寺列車区"/>
+            <ListViewItem Content="赤山町駅乗務員詰所"/>
+            <ListViewItem Content="館浜"/>
+            <ListViewItem Content="駒野"/>
+            <ListViewItem Content="河原崎"/>
+            <ListViewItem Content="海岸公園"/>
+            <ListViewItem Content="虹ケ浜"/>
+            <ListViewItem Content="津崎"/>
+            <ListViewItem Content="浜園"/>
+            <ListViewItem Content="羽衣橋"/>
+            <ListViewItem Content="新井川"/>
+            <ListViewItem Content="新野崎"/>
+            <ListViewItem Content="江ノ原"/>
+            <ListViewItem Content="大道寺"/>
+            <ListViewItem Content="藤江"/>
+            <ListViewItem Content="水越"/>
+            <ListViewItem Content="高見沢"/>
+            <ListViewItem Content="日野森"/>
+            <ListViewItem Content="奥峰口"/>
+            <ListViewItem Content="西赤山"/>
+            <ListViewItem Content="赤山町"/>
+        </ListView>
+
+        <Canvas x:Name="テンキー1" Margin="370,258,277,2">
+            <Image x:Name="syoukyo" Source="/image/syoukyo.png" Stretch="Fill" Height="42" Canvas.Top="133" Width="49"/>
+            <Image x:Name="_0" Source="/image/zero.png" Stretch="Fill" Height="41" Canvas.Left="52" Canvas.Top="133" Width="49"/>
+            <Image x:Name="_1" Source="/image/iti.png" Stretch="Fill" Height="41" Canvas.Top="89" Width="49"/>
+            <Image x:Name="_2" Source="/image/ni.png" Stretch="Fill" Height="41" Canvas.Left="52" Canvas.Top="89" Width="49"/>
+            <Image x:Name="_3" Source="/image/san.png" Stretch="Fill" Height="41" Canvas.Left="105" Canvas.Top="89" Width="48"/>
+            <Image x:Name="_4" Source="/image/yon.png" Stretch="Fill" Height="42" Canvas.Top="44" Width="49"/>
+            <Image x:Name="_5" Source="/image/go.png" Stretch="Fill" Height="42" Canvas.Left="52" Canvas.Top="44" Width="49"/>
+            <Image x:Name="_6" Source="/image/roku.png" Stretch="Fill" Height="42" Canvas.Left="105" Canvas.Top="44" Width="48"/>
+            <Image x:Name="_7" Source="/image/nana.png" Stretch="Fill" Height="41" Width="49"/>
+            <Image x:Name="_8" Source="/image/hachi.png" Stretch="Fill" Height="41" Canvas.Left="52" Width="49"/>
+            <Image x:Name="_9" Source="/image/kyuu.png" Stretch="Fill" Height="41" Canvas.Left="105" Width="48"/>
+
+        </Canvas>
+        <Canvas x:Name="ボタン" Margin="549,363,19,0">
+            <Image x:Name="jyuwa" Source="/image/jyuwa.png" Stretch="Fill" Height="72" Width="75"/>
+            <Image x:Name="syuwa" Source="/image/syuwa.png" Stretch="Fill" Height="72" Canvas.Left="154" Width="78"/>
+            <Image x:Name="hashin" Source="/image/hashin.png" Stretch="Fill" Height="72" Canvas.Left="77" Width="75"/>
+
+        </Canvas>
 
     </Grid>
 </Window>
