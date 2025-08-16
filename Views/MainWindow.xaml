@@ -5,68 +5,153 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Tatehama_tetudou_denwa_PCclient"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid x:Name="UI">
-        <Grid.Background>
-            <ImageBrush ImageSource="/image/tetudoudenwa.png"/>
-        </Grid.Background>
+        Title="MainWindow" Height="480" Width="800">
+    <Window.Resources>
+        <Style TargetType="Button" x:Key="ImageButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-        <TextBlock x:Name="NumberDisplay" 
-                   Margin="381,206,288,0" 
-                   Height="42" 
-                   VerticalAlignment="Top"
-                   Background="White" 
-                   Foreground="Black" 
-                   TextAlignment="Right"
-                   FontSize="20"
-                   Padding="5,0"/>
+        <Menu Grid.Row="0">
+            <MenuItem Header="_勤務地変更" Click="ChangeWorkLocationMenuItem_Click"/>
+            <MenuItem Header="_設定" Click="SettingsMenuItem_Click"/>
+        </Menu>
 
-        <ListView x:Name="CallList" Margin="51,83,495,36" Background="White" Foreground="Black" BorderBrush="Black">
-            <ListViewItem Content="総合司令"/>
-            <ListViewItem Content="館浜駅乗務員詰所"/>
-            <ListViewItem Content="大道寺列車区"/>
-            <ListViewItem Content="赤山町駅乗務員詰所"/>
-            <ListViewItem Content="館浜"/>
-            <ListViewItem Content="駒野"/>
-            <ListViewItem Content="河原崎"/>
-            <ListViewItem Content="海岸公園"/>
-            <ListViewItem Content="虹ケ浜"/>
-            <ListViewItem Content="津崎"/>
-            <ListViewItem Content="浜園"/>
-            <ListViewItem Content="羽衣橋"/>
-            <ListViewItem Content="新井川"/>
-            <ListViewItem Content="新野崎"/>
-            <ListViewItem Content="江ノ原"/>
-            <ListViewItem Content="大道寺"/>
-            <ListViewItem Content="藤江"/>
-            <ListViewItem Content="水越"/>
-            <ListViewItem Content="高見沢"/>
-            <ListViewItem Content="日野森"/>
-            <ListViewItem Content="奥峰口"/>
-            <ListViewItem Content="西赤山"/>
-            <ListViewItem Content="赤山町"/>
-        </ListView>
+        <Viewbox Grid.Row="1" Stretch="Uniform">
+            <Canvas Width="800" Height="450">
+                <Canvas.Background>
+                    <ImageBrush ImageSource="/image/tetudoudenwa.png"/>
+                </Canvas.Background>
 
-        <Canvas x:Name="テンキー1" Margin="370,258,277,2">
-            <Image x:Name="syoukyo" Source="/image/syoukyo.png" Stretch="Fill" Height="42" Canvas.Top="133" Width="49"/>
-            <Image x:Name="_0" Source="/image/zero.png" Stretch="Fill" Height="41" Canvas.Left="52" Canvas.Top="133" Width="49"/>
-            <Image x:Name="_1" Source="/image/iti.png" Stretch="Fill" Height="41" Canvas.Top="89" Width="49"/>
-            <Image x:Name="_2" Source="/image/ni.png" Stretch="Fill" Height="41" Canvas.Left="52" Canvas.Top="89" Width="49"/>
-            <Image x:Name="_3" Source="/image/san.png" Stretch="Fill" Height="41" Canvas.Left="105" Canvas.Top="89" Width="48"/>
-            <Image x:Name="_4" Source="/image/yon.png" Stretch="Fill" Height="42" Canvas.Top="44" Width="49"/>
-            <Image x:Name="_5" Source="/image/go.png" Stretch="Fill" Height="42" Canvas.Left="52" Canvas.Top="44" Width="49"/>
-            <Image x:Name="_6" Source="/image/roku.png" Stretch="Fill" Height="42" Canvas.Left="105" Canvas.Top="44" Width="48"/>
-            <Image x:Name="_7" Source="/image/nana.png" Stretch="Fill" Height="41" Width="49"/>
-            <Image x:Name="_8" Source="/image/hachi.png" Stretch="Fill" Height="41" Canvas.Left="52" Width="49"/>
-            <Image x:Name="_9" Source="/image/kyuu.png" Stretch="Fill" Height="41" Canvas.Left="105" Width="48"/>
+                <ListView x:Name="CallList" Canvas.Left="51" Canvas.Top="83" Width="254" Height="331" Background="White" Foreground="Black" BorderBrush="Black">
+                    <ListViewItem Content="総合司令"/>
+                    <ListViewItem Content="館浜駅乗務員詰所"/>
+                    <ListViewItem Content="大道寺列車区"/>
+                    <ListViewItem Content="赤山町駅乗務員詰所"/>
+                    <ListViewItem Content="館浜"/>
+                    <ListViewItem Content="駒野"/>
+                    <ListViewItem Content="河原崎"/>
+                    <ListViewItem Content="海岸公園"/>
+                    <ListViewItem Content="虹ケ浜"/>
+                    <ListViewItem Content="津崎"/>
+                    <ListViewItem Content="浜園"/>
+                    <ListViewItem Content="羽衣橋"/>
+                    <ListViewItem Content="新井川"/>
+                    <ListViewItem Content="新野崎"/>
+                    <ListViewItem Content="江ノ原"/>
+                    <ListViewItem Content="大道寺"/>
+                    <ListViewItem Content="藤江"/>
+                    <ListViewItem Content="水越"/>
+                    <ListViewItem Content="高見沢"/>
+                    <ListViewItem Content="日野森"/>
+                    <ListViewItem Content="奥峰口"/>
+                    <ListViewItem Content="西赤山"/>
+                    <ListViewItem Content="赤山町"/>
+                </ListView>
 
-        </Canvas>
-        <Canvas x:Name="ボタン" Margin="549,363,19,0">
-            <Image x:Name="jyuwa" Source="/image/jyuwa.png" Stretch="Fill" Height="72" Width="75"/>
-            <Image x:Name="syuwa" Source="/image/syuwa.png" Stretch="Fill" Height="72" Canvas.Left="154" Width="78"/>
-            <Image x:Name="hashin" Source="/image/hashin.png" Stretch="Fill" Height="72" Canvas.Left="77" Width="75"/>
+                <TextBlock x:Name="NumberDisplay" 
+                           Canvas.Left="381" Canvas.Top="211" Width="131" Height="43"
+                           Background="White" 
+                           Foreground="Black" 
+                           TextAlignment="Right"
+                           FontSize="20"
+                           Padding="5,0"/>
 
-        </Canvas>
+                <Canvas x:Name="KeypadCanvas" Canvas.Left="370" Canvas.Top="256">
+                    <Button x:Name="sevenButton" Canvas.Top="10.281" Canvas.Left="0" Width="51" Height="45" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="sevenButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/nana.png" Stretch="Fill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="eightButton" Canvas.Top="10.281" Canvas.Left="51" Width="51" Height="44" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="eightButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/hachi.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="nineButton" Canvas.Top="10.281" Canvas.Left="104.75" Width="50" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="nineButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/kyuu.png" Stretch="Fill"/>
+                        </Button.Background>
+                    </Button>
 
+                    <Button x:Name="fourButton" Canvas.Top="56.281" Canvas.Left="0" Width="48" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="fourButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/yon.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="fiveButton" Canvas.Top="56.281" Canvas.Left="51" Width="51" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="fiveButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/go.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="sixButton" Canvas.Top="56.281" Canvas.Left="104.75" Width="49" Height="45" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="sixButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/roku.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+
+                    <Button x:Name="oneButton" Canvas.Top="103.031" Canvas.Left="0" Width="48" Height="44" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="oneButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/iti.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="twoButton" Canvas.Top="103.031" Canvas.Left="51" Width="51" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="twoButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/ni.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="threeButton" Canvas.Top="103.031" Canvas.Left="104.75" Width="49" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="threeButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/san.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+
+                    <Button x:Name="syoukyoButton" Canvas.Top="148.531" Canvas.Left="0" Width="51" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="syoukyoButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/syoukyo.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="zeroButton" Canvas.Top="148.531" Canvas.Left="51" Width="51" Height="43" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="zeroButton_Click" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/zero.png" Stretch="UniformToFill"/>
+                        </Button.Background>
+                    </Button>
+                </Canvas>
+
+                <Canvas x:Name="FunctionButtonsCanvas" Canvas.Left="548" Canvas.Top="360">
+                    <Button x:Name="jyuwaButton" Canvas.Left="0" Width="77" Height="80" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="jyuwaButton_Click" Canvas.Top="10">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/jyuwa.png" Stretch="Fill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="hashinButton" Canvas.Left="77" Width="77" Height="80" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="hashinButton_Click" Canvas.Top="10">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/hashin.png" Stretch="Fill"/>
+                        </Button.Background>
+                    </Button>
+                    <Button x:Name="syuwaButton" Canvas.Left="154" Width="77" Height="80" Style="{StaticResource ImageButton}" BorderBrush="Transparent" Click="syuwaButton_Click" Canvas.Top="10">
+                        <Button.Background>
+                            <ImageBrush ImageSource="/image/syuwa.png" Stretch="Fill"/>
+                        </Button.Background>
+                    </Button>
+                </Canvas>
+
+            </Canvas>
+        </Viewbox>
     </Grid>
 </Window>
