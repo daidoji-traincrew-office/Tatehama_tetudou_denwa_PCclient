@@ -64,6 +64,7 @@ public partial class MainWindow : Window
     private PhoneState currentState = PhoneState.Idle;
 
     private CallListItem? myLocation;
+    private Random random = new Random();
 
     // Audio
     private WaveOutEvent? loopingDevice;
@@ -140,7 +141,8 @@ public partial class MainWindow : Window
                 bitmap.Freeze();
             }
             return new ImageBrush(bitmap) { Stretch = Stretch.Fill };
-        } catch (Exception ex) { MessageBox.Show($"画像読込エラー: {path}\n{ex.Message}"); return null; }
+        }
+        catch (Exception ex) { MessageBox.Show($"画像読込エラー: {path}\n{ex.Message}"); return null; }
     }
 
     private void InitializeMedia()
@@ -164,15 +166,15 @@ public partial class MainWindow : Window
             brushSyuwaAo = LoadImageBrushFromFile("image/syuwa-ao.png");
             brushHashin = LoadImageBrushFromFile("image/hashin.png");
             brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
-        } catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
+        }
+        catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
     }
 
     private void PopulateCallList()
     {
         CallList.Items.Clear();
         var allLocations = LocationData.GetLocations();
-        var otherLocations = allLocations.Where(loc => loc.PhoneNumber != myLocation?.PhoneNumber);
-        foreach (var location in otherLocations)
+        foreach (var location in allLocations)
         {
             CallList.Items.Add(location);
         }
@@ -282,6 +284,21 @@ public partial class MainWindow : Window
 
     #region UI Event Handlers
 
+    private void ShowSelfCallWarning()
+    {
+        var messages = new List<string>
+        {
+            "何なんだね？その発信先は？",
+            "発信先良いか？",
+            "発信先良いか？",
+            "違うよ？",
+            "混線させる気かい？",
+            "混線させる気かい？"
+        };
+        int index = random.Next(messages.Count);
+        MessageBox.Show(messages[index], "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     private void AppendNumber(string number)
     {
         if (currentState != PhoneState.Idle && currentState != PhoneState.ReadyToDial) return;
@@ -333,6 +350,11 @@ public partial class MainWindow : Window
     {
         if (currentState == PhoneState.ReadyToDial && !string.IsNullOrEmpty(NumberDisplay.Text))
         {
+            if (NumberDisplay.Text == myLocation?.PhoneNumber)
+            {
+                ShowSelfCallWarning();
+                return;
+            }
             PlaySfx("tori.wav");
             isOutgoingCall = true;
             SetState(PhoneState.Dialing);
