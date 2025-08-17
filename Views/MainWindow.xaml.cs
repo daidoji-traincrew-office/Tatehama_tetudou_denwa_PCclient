@@ -69,13 +69,14 @@ public partial class MainWindow : Window
     // Audio
     private WaveOutEvent? loopingDevice;
     private WaveInEvent? waveIn;
+    private BufferedWaveProvider? bufferedWaveProvider;
     private Dictionary<string, WaveFileReader> soundCache = new Dictionary<string, WaveFileReader>();
 
     // Image Resources
     private ImageBrush? brushJyuwa, brushJyuwaAka, brushJyuwaKiro, brushJyuwaAo, brushSyuwa, brushSyuwaAka, brushSyuwaAo, brushHashin, brushHashinAo;
 
     // Timers
-    private DispatcherTimer? callOutcomeTimer, inCallDurationTimer, flashingTimer;
+    private DispatcherTimer? callOutcomeTimer, inCallDurationTimer, flashingTimer, ringingTimer;
     private TimeSpan inCallDuration;
 
     // State Flags
@@ -103,9 +104,13 @@ public partial class MainWindow : Window
         flashingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         flashingTimer.Tick += FlashingTimer_Tick;
         
+        ringingTimer = new DispatcherTimer();
+        ringingTimer.Tick += RingingTimer_Tick;
+
         SetState(PhoneState.Idle);
 
         this.Closing += (s, e) => { 
+            StopAllSounds();
             loopingDevice?.Dispose(); 
             waveIn?.Dispose();
             foreach(var sound in soundCache.Values) sound.Dispose(); 
@@ -154,19 +159,32 @@ public partial class MainWindow : Window
     {
         try
         {
+            StopAllSounds();
             loopingDevice?.Dispose();
-            loopingDevice = new WaveOutEvent { DeviceNumber = AudioSettings.OutputDeviceNumber };
-
-            // マイクの初期化 (音声通話機能の実装が必要です)
             waveIn?.Dispose();
-            // waveIn = new WaveInEvent { DeviceNumber = AudioSettings.InputDeviceNumber };
-            // waveIn.DataAvailable += (s, a) => { /* 音声データをネットワーク経由で送信する処理 */ };
-            // waveIn.StartRecording();
+
+            if (WaveOut.DeviceCount > 0)
+            {
+                loopingDevice = new WaveOutEvent { DeviceNumber = AudioSettings.OutputDeviceNumber };
+            }
+
+            if (WaveIn.DeviceCount > 0)
+            {
+                waveIn = new WaveInEvent { DeviceNumber = AudioSettings.InputDeviceNumber };
+                waveIn.WaveFormat = new WaveFormat(8000, 16, 1);
+                bufferedWaveProvider = new BufferedWaveProvider(waveIn.WaveFormat);
+                waveIn.DataAvailable += WaveIn_DataAvailable;
+
+                if (loopingDevice != null)
+                {
+                    loopingDevice.Init(bufferedWaveProvider);
+                }
+            }
 
             if(soundCache.Count == 0)
             {
                 string soundDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sound");
-                string[] soundFiles = { "push.wav", "yobidashityuu.wav", "watyu.wav", "beru.wav", "tori.wav", "oki.wav" };
+                string[] soundFiles = { "push.wav", "yobidashityuu.wav", "watyu.wav", "beru.wav", "denshiberu.wav", "tori.wav", "oki.wav" };
                 foreach (var file in soundFiles)
                 {
                     soundCache[file] = new WaveFileReader(Path.Combine(soundDir, file));
@@ -186,6 +204,11 @@ public partial class MainWindow : Window
         catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
     }
 
+    private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
+    {
+        bufferedWaveProvider?.AddSamples(e.Buffer, 0, e.BytesRecorded);
+    }
+
     private void PopulateCallList()
     {
         CallList.Items.Clear();
@@ -202,7 +225,7 @@ public partial class MainWindow : Window
 
     private void PlaySfx(string key)
     {
-        if (!soundCache.ContainsKey(key)) return;
+        if (WaveOut.DeviceCount == 0 || !soundCache.ContainsKey(key)) return;
         var sound = soundCache[key];
         sound.Position = 0;
         var tempDevice = new WaveOutEvent { DesiredLatency = 100, DeviceNumber = AudioSettings.OutputDeviceNumber };
@@ -211,9 +234,9 @@ public partial class MainWindow : Window
         tempDevice.Play();
     }
 
-    private void PlayLoopingSound(string key)
+    private void PlayLoopingSfx(string key)
     {
-        if (loopingDevice == null || !soundCache.ContainsKey(key)) return;
+        if (loopingDevice == null || WaveOut.DeviceCount == 0 || !soundCache.ContainsKey(key)) return;
         loopingDevice.Stop();
         var sound = soundCache[key];
         sound.Position = 0;
@@ -222,7 +245,32 @@ public partial class MainWindow : Window
         loopingDevice.Play();
     }
 
-    private void StopAllSounds() { loopingDevice?.Stop(); }
+    private void StopAllSounds() 
+    {
+        loopingDevice?.Stop();
+        waveIn?.StopRecording();
+        if (bufferedWaveProvider != null) bufferedWaveProvider.ClearBuffer();
+    }
+
+    private void PlayRingingSound()
+    {
+        string soundToPlay = "denshiberu.wav"; // Default sound
+        var allLocations = LocationData.GetLocations();
+        if (myLocation != null)
+        {
+            int myIndex = allLocations.FindIndex(loc => loc.PhoneNumber == myLocation.PhoneNumber);
+            if (myIndex != -1 && myIndex < 4)
+            {
+                soundToPlay = "beru.wav";
+            }
+        }
+
+        if (soundCache.TryGetValue(soundToPlay, out var sound))
+        {
+            PlaySfx(soundToPlay);
+            ringingTimer.Interval = sound.TotalTime.Add(TimeSpan.FromSeconds(1));
+        }
+    }
 
     #endregion
 
@@ -230,6 +278,7 @@ public partial class MainWindow : Window
 
     private void SetState(PhoneState newState)
     {
+        ringingTimer?.Stop();
         StopAllSounds();
         callOutcomeTimer?.Stop();
         inCallDurationTimer?.Stop();
@@ -257,7 +306,7 @@ public partial class MainWindow : Window
                 hashinButton.Background = brushHashinAo;
                 isSyuwaFlashing = true;
                 flashingTimer?.Start();
-                PlayLoopingSound("yobidashityuu.wav");
+                PlayLoopingSfx("yobidashityuu.wav");
                 callOutcomeTimer?.Start();
                 break;
             case PhoneState.InCall:
@@ -269,6 +318,8 @@ public partial class MainWindow : Window
                 inCallDuration = TimeSpan.Zero;
                 CallTimerDisplay.Text = "00:00";
                 inCallDurationTimer?.Start();
+                waveIn?.StartRecording();
+                loopingDevice?.Play();
                 break;
             case PhoneState.Busy:
                 NumberDisplay.Text = "話し中";
@@ -280,7 +331,8 @@ public partial class MainWindow : Window
                 isJyuwaFlashing = true;
                 isSyuwaFlashing = true;
                 flashingTimer?.Start();
-                PlayLoopingSound("beru.wav");
+                PlayRingingSound(); 
+                ringingTimer?.Start();
                 break;
         }
     }
@@ -291,6 +343,11 @@ public partial class MainWindow : Window
         if (isHashinFlashing) hashinButton.Background = flashToggle ? brushHashinAo : brushHashin;
         if (isSyuwaFlashing) syuwaButton.Background = flashToggle ? brushSyuwaAka : brushSyuwa;
         if (isJyuwaFlashing) jyuwaButton.Background = flashToggle ? brushJyuwaAo : brushJyuwa;
+    }
+
+    private void RingingTimer_Tick(object? sender, EventArgs e)
+    {
+        PlayRingingSound();
     }
 
     private void CallOutcomeTimer_Tick(object? sender, EventArgs e) { SetState(NumberDisplay.Text == "1004" ? PhoneState.Busy : PhoneState.InCall); }
