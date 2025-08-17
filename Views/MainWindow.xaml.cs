@@ -68,6 +68,7 @@ public partial class MainWindow : Window
 
     // Audio
     private WaveOutEvent? loopingDevice;
+    private WaveInEvent? waveIn;
     private Dictionary<string, WaveFileReader> soundCache = new Dictionary<string, WaveFileReader>();
 
     // Image Resources
@@ -104,7 +105,11 @@ public partial class MainWindow : Window
         
         SetState(PhoneState.Idle);
 
-        this.Closing += (s, e) => { loopingDevice?.Dispose(); foreach(var sound in soundCache.Values) sound.Dispose(); };
+        this.Closing += (s, e) => { 
+            loopingDevice?.Dispose(); 
+            waveIn?.Dispose();
+            foreach(var sound in soundCache.Values) sound.Dispose(); 
+        };
     }
 
     #region Initialization & Location
@@ -149,23 +154,34 @@ public partial class MainWindow : Window
     {
         try
         {
-            loopingDevice = new WaveOutEvent();
-            string soundDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sound");
-            string[] soundFiles = { "push.wav", "yobidashityuu.wav", "watyu.wav", "beru.wav", "tori.wav", "oki.wav" };
-            foreach (var file in soundFiles)
-            {
-                soundCache[file] = new WaveFileReader(Path.Combine(soundDir, file));
-            }
+            loopingDevice?.Dispose();
+            loopingDevice = new WaveOutEvent { DeviceNumber = AudioSettings.OutputDeviceNumber };
 
-            brushJyuwa = LoadImageBrushFromFile("image/jyuwa.png");
-            brushJyuwaAka = LoadImageBrushFromFile("image/jyuwa-aka.png");
-            brushJyuwaKiro = LoadImageBrushFromFile("image/jyuwa-kiro.png");
-            brushJyuwaAo = LoadImageBrushFromFile("image/jyuwa-ao.png");
-            brushSyuwa = LoadImageBrushFromFile("image/syuwa.png");
-            brushSyuwaAka = LoadImageBrushFromFile("image/syuwa-aka.png");
-            brushSyuwaAo = LoadImageBrushFromFile("image/syuwa-ao.png");
-            brushHashin = LoadImageBrushFromFile("image/hashin.png");
-            brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
+            // マイクの初期化 (音声通話機能の実装が必要です)
+            waveIn?.Dispose();
+            // waveIn = new WaveInEvent { DeviceNumber = AudioSettings.InputDeviceNumber };
+            // waveIn.DataAvailable += (s, a) => { /* 音声データをネットワーク経由で送信する処理 */ };
+            // waveIn.StartRecording();
+
+            if(soundCache.Count == 0)
+            {
+                string soundDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sound");
+                string[] soundFiles = { "push.wav", "yobidashityuu.wav", "watyu.wav", "beru.wav", "tori.wav", "oki.wav" };
+                foreach (var file in soundFiles)
+                {
+                    soundCache[file] = new WaveFileReader(Path.Combine(soundDir, file));
+                }
+
+                brushJyuwa = LoadImageBrushFromFile("image/jyuwa.png");
+                brushJyuwaAka = LoadImageBrushFromFile("image/jyuwa-aka.png");
+                brushJyuwaKiro = LoadImageBrushFromFile("image/jyuwa-kiro.png");
+                brushJyuwaAo = LoadImageBrushFromFile("image/jyuwa-ao.png");
+                brushSyuwa = LoadImageBrushFromFile("image/syuwa.png");
+                brushSyuwaAka = LoadImageBrushFromFile("image/syuwa-aka.png");
+                brushSyuwaAo = LoadImageBrushFromFile("image/syuwa-ao.png");
+                brushHashin = LoadImageBrushFromFile("image/hashin.png");
+                brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
+            }
         }
         catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
     }
@@ -189,7 +205,7 @@ public partial class MainWindow : Window
         if (!soundCache.ContainsKey(key)) return;
         var sound = soundCache[key];
         sound.Position = 0;
-        var tempDevice = new WaveOutEvent { DesiredLatency = 100 };
+        var tempDevice = new WaveOutEvent { DesiredLatency = 100, DeviceNumber = AudioSettings.OutputDeviceNumber };
         tempDevice.Init(sound);
         tempDevice.PlaybackStopped += (s, e) => tempDevice.Dispose();
         tempDevice.Play();
@@ -375,6 +391,16 @@ public partial class MainWindow : Window
     private void ChangeWorkLocationMenuItem_Click(object sender, RoutedEventArgs e)
     {
         SelectLocation(false);
+    }
+
+    private void AudioSettingsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsWindow settingsWindow = new SettingsWindow();
+        if (settingsWindow.ShowDialog() == true)
+        {
+            // 設定が保存されたら、メディアを再初期化してデバイスの変更を適用
+            InitializeMedia();
+        }
     }
 
     private void SimulateRinging_Click(object sender, RoutedEventArgs e) { SetState(PhoneState.Ringing); }

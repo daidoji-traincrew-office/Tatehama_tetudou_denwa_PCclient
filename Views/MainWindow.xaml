@@ -31,6 +31,7 @@
         <Menu Grid.Row="0">
             <MenuItem Header="_勤務地変更" Click="ChangeWorkLocationMenuItem_Click"/>
             <MenuItem Header="_設定">
+                <MenuItem Header="_音声設定" Click="AudioSettingsMenuItem_Click"/>
                 <MenuItem Header="_着信をシミュレート" Click="SimulateRinging_Click"/>
             </MenuItem>
         </Menu>
