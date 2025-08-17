@@ -10,6 +10,8 @@ using System.IO;
 using NAudio.Wave;
 using Tatehama_tetudou_denwa_PCclient.Models;
 using Tatehama_tetudou_denwa_PCclient.Views;
+using System.Windows.Forms;
+using System.Drawing;
 
 namespace Tatehama_tetudou_denwa_PCclient;
 
@@ -79,6 +81,9 @@ public partial class MainWindow : Window
     private DispatcherTimer? callOutcomeTimer, inCallDurationTimer, flashingTimer, ringingTimer;
     private TimeSpan inCallDuration;
 
+    // Notification
+    private NotifyIcon? notifyIcon;
+
     // State Flags
     private bool isOutgoingCall = false;
     private bool isHashinFlashing, isSyuwaFlashing, isJyuwaFlashing;
@@ -88,10 +93,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         InitializeMedia();
+        InitializeNotifyIcon();
         
         if (!SelectLocation(true))
         {
-            Application.Current.Shutdown();
+            System.Windows.Application.Current.Shutdown();
             return;
         }
 
@@ -113,11 +119,34 @@ public partial class MainWindow : Window
             StopAllSounds();
             loopingDevice?.Dispose(); 
             waveIn?.Dispose();
+            notifyIcon?.Dispose();
             foreach(var sound in soundCache.Values) sound.Dispose(); 
         };
     }
 
     #region Initialization & Location
+
+    private void InitializeNotifyIcon()
+    {
+        try
+        {
+            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "image/tetudoudenwa.png");
+            using (var bitmap = new Bitmap(iconPath))
+            {
+                IntPtr hIcon = bitmap.GetHicon();
+                notifyIcon = new NotifyIcon
+                {
+                    Icon = System.Drawing.Icon.FromHandle(hIcon),
+                    Visible = true,
+                    Text = "館浜鉄道電話"
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"通知アイコンの初期化に失敗しました。\n{ex.Message}");
+        }
+    }
 
     private bool SelectLocation(bool isInitial)
     {
@@ -152,7 +181,7 @@ public partial class MainWindow : Window
             }
             return new ImageBrush(bitmap) { Stretch = Stretch.Fill };
         }
-        catch (Exception ex) { MessageBox.Show($"画像読込エラー: {path}\n{ex.Message}"); return null; }
+        catch (Exception ex) { System.Windows.MessageBox.Show($"画像読込エラー: {path}\n{ex.Message}"); return null; }
     }
 
     private void InitializeMedia()
@@ -201,7 +230,7 @@ public partial class MainWindow : Window
                 brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
             }
         }
-        catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
+        catch (Exception ex) { System.Windows.MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
     }
 
     private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
@@ -276,7 +305,7 @@ public partial class MainWindow : Window
 
     #region State & UI Management
 
-    private void SetState(PhoneState newState)
+    private void SetState(PhoneState newState, string? callerName = null)
     {
         ringingTimer?.Stop();
         StopAllSounds();
@@ -333,7 +362,16 @@ public partial class MainWindow : Window
                 flashingTimer?.Start();
                 PlayRingingSound(); 
                 ringingTimer?.Start();
+                ShowNotification(callerName ?? "不明な発信元");
                 break;
+        }
+    }
+
+    private void ShowNotification(string callerName)
+    {
+        if (notifyIcon != null)
+        {
+            notifyIcon.ShowBalloonTip(3000, "着信", $"{callerName}から着信", ToolTipIcon.Info);
         }
     }
 
@@ -359,7 +397,7 @@ public partial class MainWindow : Window
 
     private void ShowSelfCallWarning()
     {
-        var messages = new List<string>
+        var messages = new List<string> 
         {
             "何なんだね？その発信先は？",
             "発信先良いか？",
@@ -369,7 +407,7 @@ public partial class MainWindow : Window
             "混線させる気かい？"
         };
         int index = random.Next(messages.Count);
-        MessageBox.Show(messages[index], "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+        System.Windows.MessageBox.Show(messages[index], "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void AppendNumber(string number)
@@ -460,7 +498,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SimulateRinging_Click(object sender, RoutedEventArgs e) { SetState(PhoneState.Ringing); }
+    private void SimulateRinging_Click(object sender, RoutedEventArgs e) { SetState(PhoneState.Ringing, "模擬着信"); }
 
     #endregion
 }

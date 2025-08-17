@@ -24,7 +24,7 @@ public partial class LocationSelector : Window
         }
         else
         {
-            MessageBox.Show("勤務地を選択してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show("勤務地を選択してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 }
