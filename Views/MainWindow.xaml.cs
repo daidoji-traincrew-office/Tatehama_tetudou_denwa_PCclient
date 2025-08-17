@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -7,6 +8,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.IO;
 using NAudio.Wave;
+using Tatehama_tetudou_denwa_PCclient.Models;
+using Tatehama_tetudou_denwa_PCclient.Views;
 
 namespace Tatehama_tetudou_denwa_PCclient;
 
@@ -55,21 +58,12 @@ public class LoopStream : WaveStream
     }
 }
 
-public class CallListItem
-{
-    public string DisplayName { get; set; } = string.Empty;
-    public string PhoneNumber { get; set; } = string.Empty;
-
-    public override string ToString()
-    {
-        return DisplayName;
-    }
-}
-
 public partial class MainWindow : Window
 {
     private enum PhoneState { Idle, ReadyToDial, Dialing, InCall, Busy, Ringing }
     private PhoneState currentState = PhoneState.Idle;
+
+    private CallListItem? myLocation;
 
     // Audio
     private WaveOutEvent? loopingDevice;
@@ -79,7 +73,7 @@ public partial class MainWindow : Window
     private ImageBrush? brushJyuwa, brushJyuwaAka, brushJyuwaKiro, brushJyuwaAo, brushSyuwa, brushSyuwaAka, brushSyuwaAo, brushHashin, brushHashinAo;
 
     // Timers
-    private DispatcherTimer callOutcomeTimer, inCallDurationTimer, flashingTimer;
+    private DispatcherTimer? callOutcomeTimer, inCallDurationTimer, flashingTimer;
     private TimeSpan inCallDuration;
 
     // State Flags
@@ -91,8 +85,13 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         InitializeMedia();
-        PopulateCallList();
         
+        if (!SelectLocation(true))
+        {
+            Application.Current.Shutdown();
+            return;
+        }
+
         callOutcomeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         callOutcomeTimer.Tick += CallOutcomeTimer_Tick;
 
@@ -107,7 +106,24 @@ public partial class MainWindow : Window
         this.Closing += (s, e) => { loopingDevice?.Dispose(); foreach(var sound in soundCache.Values) sound.Dispose(); };
     }
 
-    #region Initialization
+    #region Initialization & Location
+
+    private bool SelectLocation(bool isInitial)
+    {
+        LocationSelector selector = new LocationSelector();
+        if (selector.ShowDialog() == true && selector.SelectedLocation != null)
+        {
+            myLocation = selector.SelectedLocation;
+            this.Title = $"館浜鉄道電話 - {myLocation.DisplayName}";
+            PopulateCallList();
+            return true;
+        }
+        else
+        {
+            if (isInitial) return false;
+            return true;
+        }
+    }
 
     private ImageBrush? LoadImageBrushFromFile(string path)
     {
@@ -124,8 +140,7 @@ public partial class MainWindow : Window
                 bitmap.Freeze();
             }
             return new ImageBrush(bitmap) { Stretch = Stretch.Fill };
-        }
-        catch (Exception ex) { MessageBox.Show($"画像読込エラー: {path}\n{ex.Message}"); return null; }
+        } catch (Exception ex) { MessageBox.Show($"画像読込エラー: {path}\n{ex.Message}"); return null; }
     }
 
     private void InitializeMedia()
@@ -149,50 +164,17 @@ public partial class MainWindow : Window
             brushSyuwaAo = LoadImageBrushFromFile("image/syuwa-ao.png");
             brushHashin = LoadImageBrushFromFile("image/hashin.png");
             brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
-        }
-        catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
+        } catch (Exception ex) { MessageBox.Show($"メディア初期化エラー: \n{ex.Message}"); }
     }
 
     private void PopulateCallList()
     {
-        var callListItems = new List<CallListItem>
+        CallList.Items.Clear();
+        var allLocations = LocationData.GetLocations();
+        var otherLocations = allLocations.Where(loc => loc.PhoneNumber != myLocation?.PhoneNumber);
+        foreach (var location in otherLocations)
         {
-            new CallListItem { DisplayName = "総合司令" },
-            new CallListItem { DisplayName = "館浜駅乗務員詰所" },
-            new CallListItem { DisplayName = "大道寺列車区" },
-            new CallListItem { DisplayName = "赤山町駅乗務員詰所" },
-            new CallListItem { DisplayName = "館浜" },
-            new CallListItem { DisplayName = "駒野" },
-            new CallListItem { DisplayName = "河原崎" },
-            new CallListItem { DisplayName = "海岸公園" },
-            new CallListItem { DisplayName = "虹ケ浜" },
-            new CallListItem { DisplayName = "津崎" },
-            new CallListItem { DisplayName = "浜園" },
-            new CallListItem { DisplayName = "羽衣橋" },
-            new CallListItem { DisplayName = "新井川" },
-            new CallListItem { DisplayName = "新野崎" },
-            new CallListItem { DisplayName = "江ノ原" },
-            new CallListItem { DisplayName = "大道寺" },
-            new CallListItem { DisplayName = "藤江" },
-            new CallListItem { DisplayName = "水越" },
-            new CallListItem { DisplayName = "高見沢" },
-            new CallListItem { DisplayName = "日野森" },
-            new CallListItem { DisplayName = "奥峰口" },
-            new CallListItem { DisplayName = "西赤山" },
-            new CallListItem { DisplayName = "赤山町" }
-        };
-
-        for (int i = 0; i < callListItems.Count; i++)
-        {
-            if (i < 4)
-            {
-                callListItems[i].PhoneNumber = (1001 + i).ToString();
-            }
-            else
-            {
-                callListItems[i].PhoneNumber = (2001 + (i - 4)).ToString();
-            }
-            CallList.Items.Add(callListItems[i]);
+            CallList.Items.Add(location);
         }
     }
 
@@ -231,9 +213,9 @@ public partial class MainWindow : Window
     private void SetState(PhoneState newState)
     {
         StopAllSounds();
-        callOutcomeTimer.Stop();
-        inCallDurationTimer.Stop();
-        flashingTimer.Stop();
+        callOutcomeTimer?.Stop();
+        inCallDurationTimer?.Stop();
+        flashingTimer?.Stop();
         isHashinFlashing = isSyuwaFlashing = isJyuwaFlashing = false;
 
         NumberDisplay.Visibility = Visibility.Visible;
@@ -251,14 +233,14 @@ public partial class MainWindow : Window
                 NumberDisplay.Text = "";
                 break;
             case PhoneState.ReadyToDial:
-                if (NumberDisplay.Text.Length == 4) { isHashinFlashing = true; flashingTimer.Start(); }
+                if (NumberDisplay.Text.Length == 4) { isHashinFlashing = true; flashingTimer?.Start(); }
                 break;
             case PhoneState.Dialing:
                 hashinButton.Background = brushHashinAo;
                 isSyuwaFlashing = true;
-                flashingTimer.Start();
+                flashingTimer?.Start();
                 PlayLoopingSound("yobidashityuu.wav");
-                callOutcomeTimer.Start();
+                callOutcomeTimer?.Start();
                 break;
             case PhoneState.InCall:
                 syuwaButton.Background = brushSyuwaAka;
@@ -268,7 +250,7 @@ public partial class MainWindow : Window
                 CallTimerDisplay.Visibility = Visibility.Visible;
                 inCallDuration = TimeSpan.Zero;
                 CallTimerDisplay.Text = "00:00";
-                inCallDurationTimer.Start();
+                inCallDurationTimer?.Start();
                 break;
             case PhoneState.Busy:
                 NumberDisplay.Text = "話し中";
@@ -279,7 +261,7 @@ public partial class MainWindow : Window
                 NumberDisplay.Text = "着信中";
                 isJyuwaFlashing = true;
                 isSyuwaFlashing = true;
-                flashingTimer.Start();
+                flashingTimer?.Start();
                 PlayLoopingSound("beru.wav");
                 break;
         }
@@ -368,7 +350,11 @@ public partial class MainWindow : Window
     private void eightButton_Click(object sender, RoutedEventArgs e) { AppendNumber("8"); }
     private void nineButton_Click(object sender, RoutedEventArgs e) { AppendNumber("9"); }
 
-    private void ChangeWorkLocationMenuItem_Click(object sender, RoutedEventArgs e) { /* TODO */ }
+    private void ChangeWorkLocationMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        SelectLocation(false);
+    }
+
     private void SimulateRinging_Click(object sender, RoutedEventArgs e) { SetState(PhoneState.Ringing); }
 
     #endregion
