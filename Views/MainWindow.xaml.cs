@@ -10,7 +10,7 @@ using System.IO;
 using NAudio.Wave;
 using Tatehama_tetudou_denwa_PCclient.Models;
 using Tatehama_tetudou_denwa_PCclient.Views;
-using System.Windows.Forms; // NotifyIconのために必要
+using System.Windows.Forms; // NotifyIconのために必要（NotifyIcon部分のみ限定的に使用）
 using System.Drawing;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Threading.Tasks;
@@ -133,8 +133,23 @@ namespace Tatehama_tetudou_denwa_PCclient
     // ここから MainWindow.xaml.cs の partial class 本体
     public partial class MainWindow : Window
     {
-        // no_answer時の音声再生（空実装。必要に応じて詳細実装）
-        private void PlayAitenashiSequence() { /* TODO: 実装 */ }
+    // XAML コントロール参照
+
+    // no_answer時の音声再生（空実装。必要に応じて詳細実装）
+        private void PlayAitenashiSequence()
+        {
+            // 不在時の音声再生
+            PlaySfx("aitenashi.wav");
+            // UI表示（不在）
+            Dispatcher.Invoke(() => {
+                if (NumberDisplay != null)
+                {
+                    NumberDisplay.Text = "不在";
+                    NumberDisplay.FontSize = 24;
+                    NumberDisplay.Visibility = Visibility.Visible;
+                }
+            });
+        }
         private enum PhoneState { Idle, ReadyToDial, Dialing, InCall, Busy, Ringing }
         private PhoneState currentState = PhoneState.Idle;
 
@@ -154,7 +169,7 @@ namespace Tatehama_tetudou_denwa_PCclient
         private TimeSpan inCallDuration;
 
         // Notification
-        private NotifyIcon? notifyIcon;
+        private System.Windows.Forms.NotifyIcon? notifyIcon;
 
         // State Flags
         private bool isOutgoingCall = false;
@@ -218,7 +233,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                 using (var bitmap = new Bitmap(iconPath))
                 {
                     IntPtr hIcon = bitmap.GetHicon();
-                    notifyIcon = new NotifyIcon
+                    notifyIcon = new System.Windows.Forms.NotifyIcon
                     {
                         Icon = System.Drawing.Icon.FromHandle(hIcon),
                         Visible = true,
@@ -324,11 +339,11 @@ namespace Tatehama_tetudou_denwa_PCclient
 
         private void PopulateCallList()
         {
-            CallList.Items.Clear();
+            CallList?.Items.Clear();
             var allLocations = LocationData.GetLocations();
             foreach (var location in allLocations)
             {
-                CallList.Items.Add(location);
+                CallList?.Items.Add(location);
             }
         }
 
@@ -516,7 +531,7 @@ namespace Tatehama_tetudou_denwa_PCclient
 
         private void CallList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (CallList.SelectedItem is CallListItem selectedItem) { NumberDisplay.Text = selectedItem.PhoneNumber; SetState(PhoneState.ReadyToDial); }
+            if (CallList?.SelectedItem is CallListItem selectedItem) { NumberDisplay!.Text = selectedItem.PhoneNumber; SetState(PhoneState.ReadyToDial); }
         }
 
         private void jyuwaButton_Click(object sender, RoutedEventArgs e)
