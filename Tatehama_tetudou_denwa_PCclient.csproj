@@ -18,9 +18,12 @@
     </Content>
   </ItemGroup>
 
+
+
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
+    <PackageReference Include="SocketIOClient" Version="3.1.2" />
   </ItemGroup>
 
 </Project>
