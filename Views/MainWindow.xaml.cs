@@ -12,12 +12,62 @@ using Tatehama_tetudou_denwa_PCclient.Models;
 using Tatehama_tetudou_denwa_PCclient.Views;
 using System.Windows.Forms;
 using System.Drawing;
+using Microsoft.AspNetCore.SignalR.Client;
+using System.Threading.Tasks;
 
-namespace Tatehama_tetudou_denwa_PCclient;
+namespace Tatehama_tetudou_denwa_PCclient
+{
 
 /// <summary>
-/// Stream for looping playback from NAudio project.
-/// </summary>
+    /// <summary>
+    /// Stream for looping playback from NAudio project.
+    /// </summary>
+
+    // SignalRサーバー接続用クラス
+    public class ServerConnection
+    {
+        private HubConnection _connection;
+        public bool IsConnected => _connection?.State == HubConnectionState.Connected;
+
+        public async Task ConnectAsync(string serverUrl)
+        {
+            _connection = new HubConnectionBuilder()
+                .WithUrl(serverUrl)
+                .WithAutomaticReconnect()
+                .Build();
+
+            _connection.On<string>("ReceiveMessage", (message) =>
+            {
+                System.Windows.MessageBox.Show($"サーバー: {message}");
+            });
+
+            try
+            {
+                await _connection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"サーバー接続失敗: {ex.Message}");
+            }
+        }
+
+        public async Task RegisterPhoneNumber(string phoneNumber)
+        {
+            if (IsConnected)
+            {
+                await _connection.InvokeAsync("RegisterPhoneNumber", phoneNumber);
+            }
+        }
+
+        public async Task ChangeStatus(string userId, string status)
+        {
+            if (IsConnected)
+            {
+                await _connection.InvokeAsync("ChangeStatus", userId, status);
+            }
+        }
+    }
+
 public class LoopStream : WaveStream
 {
     private readonly WaveStream sourceStream;
@@ -66,7 +116,6 @@ public partial class MainWindow : Window
     private PhoneState currentState = PhoneState.Idle;
 
     private CallListItem? myLocation;
-    private Random random = new Random();
 
     // Audio
     private WaveOutEvent? loopingDevice;
@@ -78,7 +127,7 @@ public partial class MainWindow : Window
     private ImageBrush? brushJyuwa, brushJyuwaAka, brushJyuwaKiro, brushJyuwaAo, brushSyuwa, brushSyuwaAka, brushSyuwaAo, brushHashin, brushHashinAo;
 
     // Timers
-    private DispatcherTimer? callOutcomeTimer, inCallDurationTimer, flashingTimer, ringingTimer;
+    private DispatcherTimer? inCallDurationTimer, flashingTimer, ringingTimer;
     private TimeSpan inCallDuration;
 
     // Notification
@@ -100,9 +149,6 @@ public partial class MainWindow : Window
             System.Windows.Application.Current.Shutdown();
             return;
         }
-
-        callOutcomeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        callOutcomeTimer.Tick += CallOutcomeTimer_Tick;
 
         inCallDurationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         inCallDurationTimer.Tick += InCallDurationTimer_Tick;
@@ -309,7 +355,6 @@ public partial class MainWindow : Window
     {
         ringingTimer?.Stop();
         StopAllSounds();
-        callOutcomeTimer?.Stop();
         inCallDurationTimer?.Stop();
         flashingTimer?.Stop();
         isHashinFlashing = isSyuwaFlashing = isJyuwaFlashing = false;
@@ -336,7 +381,6 @@ public partial class MainWindow : Window
                 isSyuwaFlashing = true;
                 flashingTimer?.Start();
                 PlayLoopingSfx("yobidashityuu.wav");
-                callOutcomeTimer?.Start();
                 break;
             case PhoneState.InCall:
                 syuwaButton.Background = brushSyuwaAka;
@@ -388,7 +432,6 @@ public partial class MainWindow : Window
         PlayRingingSound();
     }
 
-    private void CallOutcomeTimer_Tick(object? sender, EventArgs e) { SetState(NumberDisplay.Text == "1004" ? PhoneState.Busy : PhoneState.InCall); }
     private void InCallDurationTimer_Tick(object? sender, EventArgs e) { inCallDuration = inCallDuration.Add(TimeSpan.FromSeconds(1)); CallTimerDisplay.Text = inCallDuration.ToString(@"mm\:ss"); }
 
     #endregion
@@ -406,8 +449,7 @@ public partial class MainWindow : Window
             "混線させる気かい？",
             "混線させる気かい？"
         };
-        int index = random.Next(messages.Count);
-        System.Windows.MessageBox.Show(messages[index], "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+        System.Windows.MessageBox.Show(messages[0], "警告", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning); // Display first message only
     }
 
     private void AppendNumber(string number)
@@ -498,7 +540,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SimulateRinging_Click(object sender, RoutedEventArgs e) { SetState(PhoneState.Ringing, "模擬着信"); }
 
     #endregion
+}
+
 }
