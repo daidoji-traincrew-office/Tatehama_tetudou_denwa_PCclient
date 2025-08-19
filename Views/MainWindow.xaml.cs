@@ -1,3 +1,4 @@
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -56,12 +57,10 @@ namespace Tatehama_tetudou_denwa_PCclient
             // kireを1回だけ流す
             if (!token.IsCancellationRequested)
                 await PlaySfxAndWait("kire.wav");
+            // kire2まで0.3秒待機
             if (!token.IsCancellationRequested)
-                await Task.Delay(500);
-            // kireを1回だけ流す
-            if (!token.IsCancellationRequested)
-                await PlaySfxAndWait("kire.wav");
-            // すぐにkire2を流す（1回だけ）
+                await Task.Delay(300);
+            // 0.2秒後にkire2を1回だけ流す
             if (!token.IsCancellationRequested)
                 await PlaySfxAndWait("kire2.wav");
             // kire2を0.35秒間隔で終話まで無限ループ
