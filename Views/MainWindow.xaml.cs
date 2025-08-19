@@ -1,4 +1,5 @@
 using NAudio.Wave;
+// using NAudio.Wave; // Removed duplicate using statement
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -101,11 +102,17 @@ namespace Tatehama_tetudou_denwa_PCclient
             InitializeMedia();
             InitializeNotifyIcon();
 
-            if (!SelectLocation(true))
+            // 勤務地選択ダイアログを必ず表示し、選択されるまで進まない
+            while (myLocation == null)
             {
-                System.Windows.Application.Current.Shutdown();
-                return;
+                if (!SelectLocation(true))
+                {
+                    System.Windows.Application.Current.Shutdown();
+                    return;
+                }
             }
+            // ウィンドウタイトルに勤務地名を反映
+            this.Title = $"館浜鉄道電話 - {myLocation.DisplayName}";
 
             inCallDurationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             inCallDurationTimer.Tick += InCallDurationTimer_Tick;
@@ -128,8 +135,13 @@ namespace Tatehama_tetudou_denwa_PCclient
 
             serverConnection = new Models.ServerConnection();
             string serverUrl = "http://localhost:5148/connectionHub";
-            string myPhoneNumber = myLocation?.PhoneNumber ?? "";
-            _ = serverConnection.ConnectAsync(serverUrl, myPhoneNumber);
+            string myPhoneNumber = myLocation.PhoneNumber;
+            _ = serverConnection.ConnectAsync(serverUrl, myPhoneNumber).ContinueWith(async t =>
+            {
+                // サーバーに電話番号を登録
+                if (serverConnection != null)
+                    await serverConnection.RegisterPhoneNumber(myPhoneNumber);
+            });
             serverConnection.NoAnswerReceived += async () =>
             {
                 await PlayAitenashiSequence();
@@ -160,7 +172,7 @@ namespace Tatehama_tetudou_denwa_PCclient
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"通知アイコンの初期化に失敗しました。\n{{ex.Message}}");
+                System.Windows.MessageBox.Show($"通知アイコンの初期化に失敗しました。");
             }
         }
 
@@ -197,7 +209,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                 }
                 return new ImageBrush(bitmap) { Stretch = Stretch.Fill };
             }
-            catch (Exception ex) { System.Windows.MessageBox.Show($"画像読込エラー: {{path}}\n{{ex.Message}}"); return null; }
+        catch (Exception) { System.Windows.MessageBox.Show($"画像読込エラー: " + path); return null; }
         }
 
         private void InitializeMedia()
@@ -246,7 +258,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                     brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
                 }
             }
-            catch (Exception ex) { System.Windows.MessageBox.Show($"メディア初期化エラー: \n{{ex.Message}}"); }
+        catch (Exception) { System.Windows.MessageBox.Show($"メディア初期化エラー"); }
         }
 
         private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
@@ -393,9 +405,19 @@ namespace Tatehama_tetudou_denwa_PCclient
         private void FlashingTimer_Tick(object? sender, EventArgs e)
         {
             flashToggle = !flashToggle;
-            if (isHashinFlashing) hashinButton.Background = flashToggle ? brushHashinAo : brushHashin;
-            if (isSyuwaFlashing) syuwaButton.Background = flashToggle ? brushSyuwaAka : brushSyuwa;
-            if (isJyuwaFlashing) jyuwaButton.Background = flashToggle ? brushJyuwaAo : brushJyuwa;
+
+            if (isHashinFlashing)
+            {
+                hashinButton.Background = flashToggle ? brushHashinAo : brushHashin;
+            }
+            if (isSyuwaFlashing)
+            {
+                syuwaButton.Background = flashToggle ? brushSyuwaAka : brushSyuwa;
+            }
+            if (isJyuwaFlashing)
+            {
+                jyuwaButton.Background = flashToggle ? brushJyuwaAka : brushJyuwa;
+            }
         }
 
         private void RingingTimer_Tick(object? sender, EventArgs e)
@@ -411,7 +433,7 @@ namespace Tatehama_tetudou_denwa_PCclient
 
         private void ShowSelfCallWarning()
         {
-            var messages = new List<string> 
+            var messages = new List<string>
             {
                 "何なんだね？その発信先は？",
                 "発信先良いか？",
@@ -486,6 +508,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                 SetState(PhoneState.Dialing);
                 if (serverConnection != null && myLocation != null)
                 {
+                    System.Windows.MessageBox.Show($"発信時に送信する自分の電話番号: {myLocation.PhoneNumber}\n相手の電話番号: {NumberDisplay.Text}");
                     _ = serverConnection.CallRequest(myLocation.PhoneNumber, NumberDisplay.Text);
                 }
             }
@@ -504,7 +527,14 @@ namespace Tatehama_tetudou_denwa_PCclient
 
         private void ChangeWorkLocationMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            SelectLocation(false);
+            if (SelectLocation(false) && myLocation != null)
+            {
+                // ウィンドウタイトルに勤務地名を反映
+                this.Title = $"館浜鉄道電話 - {myLocation.DisplayName}";
+                // サーバーに新しい電話番号を通知
+                if (serverConnection != null)
+                    _ = serverConnection.UpdateState(myLocation.PhoneNumber, (Tatehama_tetudou_denwa_PCclient.Models.PhoneState)PhoneState.Idle);
+            }
         }
 
         private void AudioSettingsMenuItem_Click(object sender, RoutedEventArgs e)

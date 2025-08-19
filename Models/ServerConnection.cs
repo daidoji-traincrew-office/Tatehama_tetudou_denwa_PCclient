@@ -7,9 +7,15 @@ namespace Tatehama_tetudou_denwa_PCclient.Models
 {
     public class ServerConnection
     {
+        public async Task RegisterPhoneNumber(string phoneNumber)
+        {
+            if (_connection != null)
+                await _connection.InvokeAsync("RegisterPhoneNumber", phoneNumber);
+        }
+
         private HubConnection? _connection;
-    public event Action? NoAnswerReceived;
-    public event Action<string>? CallOkReceived;
+        public event Action? NoAnswerReceived;
+        public event Action<string>? CallOkReceived;
 
         public async Task ConnectAsync(string url, string clientId)
         {
@@ -37,25 +43,25 @@ namespace Tatehama_tetudou_denwa_PCclient.Models
 
         public async Task UpdateState(string clientId, PhoneState state)
         {
-            if (_connection is not null)
+            if (_connection != null)
                 await _connection.InvokeAsync("UpdateState", clientId, state.ToString());
         }
 
         public async Task CallRequest(string fromId, string toId)
         {
-            if (_connection is not null)
+            if (_connection != null)
                 await _connection.InvokeAsync("CallRequest", fromId, toId);
         }
 
         public async Task AnswerCall(string fromId, string toId)
         {
-            if (_connection is not null)
+            if (_connection != null)
                 await _connection.InvokeAsync("AnswerCall", fromId, toId);
         }
 
         public async Task EndCall(string fromId, string toId)
         {
-            if (_connection is not null)
+            if (_connection != null)
                 await _connection.InvokeAsync("EndCall", fromId, toId);
         }
     }
