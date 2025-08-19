@@ -14,8 +14,9 @@ namespace Tatehama_tetudou_denwa_PCclient.Models
         }
 
         private HubConnection? _connection;
-        public event Action? NoAnswerReceived;
-        public event Action<string>? CallOkReceived;
+    public event Action? NoAnswerReceived;
+    public event Action<string>? CallOkReceived;
+    public event Action<string>? RingingReceived;
 
         public async Task ConnectAsync(string url, string clientId)
         {
@@ -29,6 +30,10 @@ namespace Tatehama_tetudou_denwa_PCclient.Models
                 if (message == "no_answer")
                 {
                     NoAnswerReceived?.Invoke();
+                }
+                else if (message.StartsWith("ringing:"))
+                {
+                    RingingReceived?.Invoke(message.Substring("ringing:".Length));
                 }
                 else if (message.StartsWith("call_ok:"))
                 {

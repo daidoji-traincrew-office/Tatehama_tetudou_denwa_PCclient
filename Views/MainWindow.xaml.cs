@@ -1,5 +1,4 @@
 using NAudio.Wave;
-// using NAudio.Wave; // Removed duplicate using statement
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -12,7 +11,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
-using NAudio.Wave;
 using Tatehama_tetudou_denwa_PCclient.Models;
 using Tatehama_tetudou_denwa_PCclient.Views;
 
@@ -141,15 +139,21 @@ namespace Tatehama_tetudou_denwa_PCclient
                 // サーバーに電話番号を登録
                 if (serverConnection != null)
                     await serverConnection.RegisterPhoneNumber(myPhoneNumber);
+
+                // イベント登録は接続完了後に行う
+                serverConnection.NoAnswerReceived += async () =>
+                {
+                    await Dispatcher.InvokeAsync(async () => await PlayAitenashiSequence());
+                };
+                serverConnection.CallOkReceived += (calleeNumber) =>
+                {
+                    Dispatcher.Invoke(() => SetState(PhoneState.InCall, calleeNumber));
+                };
+                serverConnection.RingingReceived += (callerNumber) =>
+                {
+                    Dispatcher.Invoke(() => SetState(PhoneState.Ringing, callerNumber));
+                };
             });
-            serverConnection.NoAnswerReceived += async () =>
-            {
-                await PlayAitenashiSequence();
-            };
-            serverConnection.CallOkReceived += (calleeNumber) =>
-            {
-                SetState(PhoneState.InCall, calleeNumber);
-            };
         }
 
         #region Initialization & Location
@@ -282,13 +286,29 @@ namespace Tatehama_tetudou_denwa_PCclient
 
         private void PlaySfx(string key)
         {
-            if (WaveOut.DeviceCount == 0 || !soundCache.ContainsKey(key)) return;
-            var sound = soundCache[key];
-            sound.Position = 0;
-            var tempDevice = new WaveOutEvent { DesiredLatency = 100, DeviceNumber = AudioSettings.OutputDeviceNumber };
-            tempDevice.Init(sound);
-            tempDevice.PlaybackStopped += (s, e) => tempDevice.Dispose();
-            tempDevice.Play();
+            try
+            {
+                if (WaveOut.DeviceCount == 0)
+                {
+                    System.Windows.MessageBox.Show("サウンドデバイスが見つかりません。設定画面で出力デバイスを確認してください。", "サウンドエラー");
+                    return;
+                }
+                if (!soundCache.ContainsKey(key))
+                {
+                    System.Windows.MessageBox.Show($"サウンドファイル '{key}' が見つかりません。", "サウンドエラー");
+                    return;
+                }
+                var sound = soundCache[key];
+                sound.Position = 0;
+                var tempDevice = new WaveOutEvent { DesiredLatency = 100, DeviceNumber = AudioSettings.OutputDeviceNumber };
+                tempDevice.Init(sound);
+                tempDevice.PlaybackStopped += (s, e) => tempDevice.Dispose();
+                tempDevice.Play();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"サウンド再生エラー: {ex.Message}", "サウンドエラー");
+            }
         }
 
         private void PlayLoopingSfx(string key)
@@ -508,7 +528,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                 SetState(PhoneState.Dialing);
                 if (serverConnection != null && myLocation != null)
                 {
-                    System.Windows.MessageBox.Show($"発信時に送信する自分の電話番号: {myLocation.PhoneNumber}\n相手の電話番号: {NumberDisplay.Text}");
+                    // 発信時のデバッグ表示は削除（UIブロック防止）
                     _ = serverConnection.CallRequest(myLocation.PhoneNumber, NumberDisplay.Text);
                 }
             }
