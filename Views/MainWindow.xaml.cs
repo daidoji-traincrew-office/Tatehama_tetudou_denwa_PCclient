@@ -1,4 +1,6 @@
+using System.Threading;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -13,87 +15,30 @@ using System.Windows.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
 using Tatehama_tetudou_denwa_PCclient.Models;
 using Tatehama_tetudou_denwa_PCclient.Views;
+using System.Diagnostics;
 
 namespace Tatehama_tetudou_denwa_PCclient
 {
     public partial class MainWindow : Window
     {
-
+        // --- 旧実装の全機能を復元 ---
+        // 変数宣言
         private string? incomingCallerNumber;
-        // キャンセル用トークン
         private CancellationTokenSource? aitenashiCancelToken;
-        // 指定音声を再生し、再生完了までawaitする
-            private async Task PlaySfxAndWait(string key)
-            {
-                if (WaveOut.DeviceCount == 0 || !soundCache.ContainsKey(key)) return;
-                var sound = soundCache[key];
-                sound.Position = 0;
-                var tcs = new TaskCompletionSource<bool>();
-                var tempDevice = new WaveOutEvent { DesiredLatency = 100, DeviceNumber = AudioSettings.OutputDeviceNumber };
-                tempDevice.Init(sound);
-                tempDevice.PlaybackStopped += (s, e) => {
-                    tempDevice.Dispose();
-                    tcs.SetResult(true);
-                };
-                tempDevice.Play();
-                await tcs.Task;
-            }
-
-        private async Task PlayAitenashiSequence()
-        {
-            // 呼出中音(yobidashityuu.wav)のループ再生を停止
-            StopAllSounds();
-            aitenashiCancelToken?.Cancel();
-            aitenashiCancelToken = new CancellationTokenSource();
-            var token = aitenashiCancelToken.Token;
-            await PlaySfxAndWait("tori.wav");
-            var rand = new Random();
-            string aitenashi = rand.NextDouble() < 0.9 ? "aitenashi_1.wav" : "aitenashi_2.wav";
-            await PlaySfxAndWait(aitenashi);
-            Dispatcher.Invoke(() => {
-                NumberDisplay.Text = "不在";
-                NumberDisplay.FontSize = 24;
-                NumberDisplay.Visibility = Visibility.Visible;
-            });
-            // kireを1回だけ流す
-            if (!token.IsCancellationRequested)
-                await PlaySfxAndWait("kire.wav");
-            // kire2まで0.3秒待機
-            if (!token.IsCancellationRequested)
-                await Task.Delay(300);
-            // 0.2秒後にkire2を1回だけ流す
-            if (!token.IsCancellationRequested)
-                await PlaySfxAndWait("kire2.wav");
-            // kire2を0.35秒間隔で終話まで無限ループ
-            while (!token.IsCancellationRequested)
-            {
-                await Task.Delay(350);
-                if (token.IsCancellationRequested) break;
-                await PlaySfxAndWait("kire2.wav");
-            }
-        }
-
         private enum PhoneState { Idle, ReadyToDial, Dialing, InCall, Busy, Ringing }
         private PhoneState currentState = PhoneState.Idle;
-
         private CallListItem? myLocation;
-
         private WaveOutEvent? loopingDevice;
         private WaveInEvent? waveIn;
         private BufferedWaveProvider? bufferedWaveProvider;
         private Dictionary<string, WaveFileReader> soundCache = new Dictionary<string, WaveFileReader>();
-
         private ImageBrush? brushJyuwa, brushJyuwaAka, brushJyuwaKiro, brushJyuwaAo, brushSyuwa, brushSyuwaAka, brushSyuwaAo, brushHashin, brushHashinAo;
-
         private DispatcherTimer? inCallDurationTimer, flashingTimer, ringingTimer;
         private TimeSpan inCallDuration;
-
         private System.Windows.Forms.NotifyIcon? notifyIcon;
-
         private bool isOutgoingCall = false;
         private bool isHashinFlashing, isSyuwaFlashing, isJyuwaFlashing;
         private bool flashToggle = false;
-
         private Models.ServerConnection? serverConnection;
 
         public MainWindow()
@@ -101,8 +46,6 @@ namespace Tatehama_tetudou_denwa_PCclient
             InitializeComponent();
             InitializeMedia();
             InitializeNotifyIcon();
-
-            // 勤務地選択ダイアログを必ず表示し、選択されるまで進まない
             while (myLocation == null)
             {
                 if (!SelectLocation(true))
@@ -111,54 +54,104 @@ namespace Tatehama_tetudou_denwa_PCclient
                     return;
                 }
             }
-            // ウィンドウタイトルに勤務地名を反映
             this.Title = $"館浜鉄道電話 - {myLocation.DisplayName}";
-
             inCallDurationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             inCallDurationTimer.Tick += InCallDurationTimer_Tick;
-
             flashingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             flashingTimer.Tick += FlashingTimer_Tick;
-
             ringingTimer = new DispatcherTimer();
             ringingTimer.Tick += RingingTimer_Tick;
-
             SetState(PhoneState.Idle);
-
-            this.Closing += (s, e) => { 
+            this.Closing += (s, e) => {
                 StopAllSounds();
                 loopingDevice?.Dispose();
                 waveIn?.Dispose();
                 notifyIcon?.Dispose();
                 foreach (var sound in soundCache.Values) sound.Dispose();
             };
-
             serverConnection = new Models.ServerConnection();
             string serverUrl = "http://localhost:5148/connectionHub";
-            string myPhoneNumber = myLocation.PhoneNumber;
+            string myPhoneNumber = myLocation != null ? myLocation.PhoneNumber : "";
             _ = serverConnection.ConnectAsync(serverUrl, myPhoneNumber).ContinueWith(async t =>
             {
-                // サーバーに電話番号を登録
                 if (serverConnection != null)
                     await serverConnection.RegisterPhoneNumber(myPhoneNumber);
 
-                // イベント登録は接続完了後に行う
+                // サーバーから「不在」通知
                 serverConnection.NoAnswerReceived += async () =>
                 {
                     await Dispatcher.InvokeAsync(async () => await PlayAitenashiSequence());
+                    Dispatcher.Invoke(() => {
+                        SetState(PhoneState.Idle);
+                        incomingCallerNumber = null;
+                    });
                 };
-                serverConnection.CallOkReceived += (calleeNumber) =>
-                {
-                    Dispatcher.Invoke(() => SetState(PhoneState.InCall, calleeNumber));
-                };
+
+                // サーバーから「着信」通知
                 serverConnection.RingingReceived += (callerNumber) =>
                 {
-                    Dispatcher.Invoke(() => SetState(PhoneState.Ringing, callerNumber));
+                    Dispatcher.Invoke(() => {
+                        // 既に通話中・着信中なら無視（多重着信防止）
+                        if (currentState == PhoneState.InCall || currentState == PhoneState.Ringing)
+                            return;
+                        incomingCallerNumber = callerNumber;
+                        SetState(PhoneState.Ringing, callerNumber);
+                    });
+                };
+
+                // サーバーから「通話確立」通知
+                serverConnection.CallOkReceived += (calleeNumber) =>
+                {
+                    Dispatcher.Invoke(() => {
+                        // 通話確立時は着信番号をクリア
+                        incomingCallerNumber = null;
+                        SetState(PhoneState.InCall, calleeNumber);
+                    });
+                };
+
+                // サーバーから「終話」通知
+                serverConnection.EndCallReceived += () =>
+                {
+                    Dispatcher.Invoke(() => {
+                        PlaySfx("kire.wav");
+                        SetState(PhoneState.Idle);
+                        incomingCallerNumber = null;
+                    });
                 };
             });
         }
 
-        #region Initialization & Location
+        private async Task PlayAitenashiSequence()
+        {
+            StopAllSounds();
+            aitenashiCancelToken?.Cancel();
+            aitenashiCancelToken = new CancellationTokenSource();
+            var token = aitenashiCancelToken.Token;
+            await Task.Delay(100); // 呼出中音停止後の待機
+            PlaySfx("tori.wav");
+            await Task.Delay(500);
+            var rand = new Random();
+            string aitenashi = rand.NextDouble() < 0.9 ? "aitenashi_1.wav" : "aitenashi_2.wav";
+            PlaySfx(aitenashi);
+            await Task.Delay(1500);
+            Dispatcher.Invoke(() => {
+                NumberDisplay.Text = "不在";
+                NumberDisplay.FontSize = 24;
+                NumberDisplay.Visibility = Visibility.Visible;
+            });
+            if (!token.IsCancellationRequested)
+                PlaySfx("kire.wav");
+            if (!token.IsCancellationRequested)
+                await Task.Delay(300);
+            if (!token.IsCancellationRequested)
+                PlaySfx("kire2.wav");
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(350);
+                if (token.IsCancellationRequested) break;
+                PlaySfx("kire2.wav");
+            }
+        }
 
         private void InitializeNotifyIcon()
         {
@@ -176,7 +169,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                     };
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 System.Windows.MessageBox.Show($"通知アイコンの初期化に失敗しました。");
             }
@@ -215,7 +208,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                 }
                 return new ImageBrush(bitmap) { Stretch = Stretch.Fill };
             }
-        catch (Exception) { System.Windows.MessageBox.Show($"画像読込エラー: " + path); return null; }
+            catch (Exception) { System.Windows.MessageBox.Show($"画像読込エラー: " + path); return null; }
         }
 
         private void InitializeMedia()
@@ -225,25 +218,21 @@ namespace Tatehama_tetudou_denwa_PCclient
                 StopAllSounds();
                 loopingDevice?.Dispose();
                 waveIn?.Dispose();
-
                 if (WaveOut.DeviceCount > 0)
                 {
                     loopingDevice = new WaveOutEvent { DeviceNumber = AudioSettings.OutputDeviceNumber };
                 }
-
                 if (WaveIn.DeviceCount > 0)
                 {
                     waveIn = new WaveInEvent { DeviceNumber = AudioSettings.InputDeviceNumber };
                     waveIn.WaveFormat = new WaveFormat(8000, 16, 1);
                     bufferedWaveProvider = new BufferedWaveProvider(waveIn.WaveFormat);
                     waveIn.DataAvailable += WaveIn_DataAvailable;
-
                     if (loopingDevice != null)
                     {
                         loopingDevice.Init(bufferedWaveProvider);
                     }
                 }
-
                 if(soundCache.Count == 0)
                 {
                     string soundDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sound");
@@ -252,7 +241,6 @@ namespace Tatehama_tetudou_denwa_PCclient
                     {
                         soundCache[file] = new WaveFileReader(Path.Combine(soundDir, file));
                     }
-
                     brushJyuwa = LoadImageBrushFromFile("image/jyuwa.png");
                     brushJyuwaAka = LoadImageBrushFromFile("image/jyuwa-aka.png");
                     brushJyuwaKiro = LoadImageBrushFromFile("image/jyuwa-kiro.png");
@@ -264,7 +252,7 @@ namespace Tatehama_tetudou_denwa_PCclient
                     brushHashinAo = LoadImageBrushFromFile("image/hashin-ao.png");
                 }
             }
-        catch (Exception) { System.Windows.MessageBox.Show($"メディア初期化エラー"); }
+            catch (Exception) { System.Windows.MessageBox.Show($"メディア初期化エラー"); }
         }
 
         private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
@@ -281,10 +269,6 @@ namespace Tatehama_tetudou_denwa_PCclient
                 CallList?.Items.Add(location);
             }
         }
-
-        #endregion
-
-        #region Audio Playback
 
         private void PlaySfx(string key)
         {
@@ -343,7 +327,6 @@ namespace Tatehama_tetudou_denwa_PCclient
                     soundToPlay = "beru.wav";
                 }
             }
-
             if (soundCache.TryGetValue(soundToPlay, out var sound))
             {
                 PlaySfx(soundToPlay);
@@ -352,10 +335,6 @@ namespace Tatehama_tetudou_denwa_PCclient
             }
         }
 
-        #endregion
-
-        #region State & UI Management
-
         private void SetState(PhoneState newState, string? callerName = null)
         {
             ringingTimer?.Stop();
@@ -363,16 +342,13 @@ namespace Tatehama_tetudou_denwa_PCclient
             inCallDurationTimer?.Stop();
             flashingTimer?.Stop();
             isHashinFlashing = isSyuwaFlashing = isJyuwaFlashing = false;
-
             NumberDisplay.Visibility = Visibility.Visible;
             CallTimerDisplay.Visibility = Visibility.Collapsed;
             NumberDisplay.FontSize = 30;
             jyuwaButton.Background = brushJyuwa;
             syuwaButton.Background = brushSyuwa;
             hashinButton.Background = brushHashin;
-
             currentState = newState;
-
             switch (currentState)
             {
                 case PhoneState.Idle:
@@ -388,16 +364,15 @@ namespace Tatehama_tetudou_denwa_PCclient
                     PlayLoopingSfx("yobidashityuu.wav");
                     break;
                 case PhoneState.InCall:
+                    loopingDevice?.Stop();
                     syuwaButton.Background = brushSyuwaAka;
                     if (isOutgoingCall) { hashinButton.Background = brushHashinAo; }
                     else { jyuwaButton.Background = brushJyuwaAo; }
-                    NumberDisplay.Visibility = Visibility.Collapsed;
                     CallTimerDisplay.Visibility = Visibility.Visible;
                     inCallDuration = TimeSpan.Zero;
                     CallTimerDisplay.Text = "00:00";
                     inCallDurationTimer?.Start();
                     waveIn?.StartRecording();
-                    loopingDevice?.Play();
                     break;
                 case PhoneState.Busy:
                     NumberDisplay.Text = "話し中";
@@ -407,10 +382,11 @@ namespace Tatehama_tetudou_denwa_PCclient
                 case PhoneState.Ringing:
                     NumberDisplay.Text = "着信中";
                     jyuwaButton.Background = brushJyuwaAo;
+                    loopingDevice?.Stop();
                     isJyuwaFlashing = true;
                     isSyuwaFlashing = true;
                     flashingTimer?.Start();
-                    PlayRingingSound(); 
+                    PlayRingingSound();
                     ringingTimer?.Start();
                     ShowNotification(callerName ?? "不明な発信元");
                     incomingCallerNumber = callerName;
@@ -429,7 +405,6 @@ namespace Tatehama_tetudou_denwa_PCclient
         private void FlashingTimer_Tick(object? sender, EventArgs e)
         {
             flashToggle = !flashToggle;
-
             if (isHashinFlashing)
             {
                 hashinButton.Background = flashToggle ? brushHashinAo : brushHashin;
@@ -449,11 +424,11 @@ namespace Tatehama_tetudou_denwa_PCclient
             PlayRingingSound();
         }
 
-        private void InCallDurationTimer_Tick(object? sender, EventArgs e) { inCallDuration = inCallDuration.Add(TimeSpan.FromSeconds(1)); CallTimerDisplay.Text = inCallDuration.ToString(@"mm\:ss"); }
-
-        #endregion
-
-        #region UI Event Handlers
+        private void InCallDurationTimer_Tick(object? sender, EventArgs e)
+        {
+            inCallDuration = inCallDuration.Add(TimeSpan.FromSeconds(1));
+            CallTimerDisplay.Text = inCallDuration.ToString(@"mm\:ss");
+        }
 
         private void ShowSelfCallWarning()
         {
@@ -503,10 +478,13 @@ namespace Tatehama_tetudou_denwa_PCclient
             {
                 PlaySfx("tori.wav");
                 isOutgoingCall = false;
-                // サーバーにAnswerCallを通知（着信時に保持した発信者番号を使う）
                 if (serverConnection != null && myLocation != null && !string.IsNullOrEmpty(incomingCallerNumber))
                 {
-                    _ = serverConnection.AnswerCall(incomingCallerNumber, myLocation.PhoneNumber);
+                    // RegisterPhoneNumber後にconnid:xxxが返るのでそれを使う
+                    string myConnId = serverConnection.GetConnectionId() ?? "";
+                    string peerConnId = incomingCallerNumber; // RingingReceivedでConnectionIdを受け取る
+                    if (!string.IsNullOrEmpty(myConnId) && !string.IsNullOrEmpty(peerConnId))
+                        _ = serverConnection.AnswerCall(myConnId, peerConnId);
                 }
                 SetState(PhoneState.InCall);
             }
@@ -514,13 +492,18 @@ namespace Tatehama_tetudou_denwa_PCclient
 
         private void syuwaButton_Click(object sender, RoutedEventArgs e)
         {
-            if (currentState != PhoneState.Idle)
+            aitenashiCancelToken?.Cancel();
+            StopAllSounds();
+            PlaySfx("oki.wav");
+            string targetNumber = incomingCallerNumber;
+            // 通話相手番号が未設定の場合はNumberDisplay.Textを使う
+            if (string.IsNullOrEmpty(targetNumber))
+                targetNumber = NumberDisplay.Text;
+            if (serverConnection != null && myLocation != null && !string.IsNullOrEmpty(targetNumber))
             {
-                aitenashiCancelToken?.Cancel(); // 不在音ループ即停止
-                StopAllSounds(); // 足音（kire2）も即停止
-                PlaySfx("oki.wav");
-                SetState(PhoneState.Idle);
+                _ = serverConnection.EndCall(myLocation.PhoneNumber, targetNumber);
             }
+            SetState(PhoneState.Idle);
         }
 
         private void hashinButton_Click(object sender, RoutedEventArgs e)
@@ -537,7 +520,6 @@ namespace Tatehama_tetudou_denwa_PCclient
                 SetState(PhoneState.Dialing);
                 if (serverConnection != null && myLocation != null)
                 {
-                    // 発信時のデバッグ表示は削除（UIブロック防止）
                     _ = serverConnection.CallRequest(myLocation.PhoneNumber, NumberDisplay.Text);
                 }
             }
@@ -558,9 +540,7 @@ namespace Tatehama_tetudou_denwa_PCclient
         {
             if (SelectLocation(false) && myLocation != null)
             {
-                // ウィンドウタイトルに勤務地名を反映
                 this.Title = $"館浜鉄道電話 - {myLocation.DisplayName}";
-                // サーバーに新しい電話番号を通知
                 if (serverConnection != null)
                     _ = serverConnection.UpdateState(myLocation.PhoneNumber, (Tatehama_tetudou_denwa_PCclient.Models.PhoneState)PhoneState.Idle);
             }
@@ -574,6 +554,5 @@ namespace Tatehama_tetudou_denwa_PCclient
                 InitializeMedia();
             }
         }
-        #endregion
     }
 }
