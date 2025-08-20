@@ -18,8 +18,10 @@ namespace Tatehama_tetudou_denwa_PCclient
 {
     public partial class MainWindow : Window
     {
-    // キャンセル用トークン
-    private CancellationTokenSource? aitenashiCancelToken;
+
+        private string? incomingCallerNumber;
+        // キャンセル用トークン
+        private CancellationTokenSource? aitenashiCancelToken;
         // 指定音声を再生し、再生完了までawaitする
             private async Task PlaySfxAndWait(string key)
             {
@@ -186,7 +188,7 @@ namespace Tatehama_tetudou_denwa_PCclient
             if (selector.ShowDialog() == true && selector.SelectedLocation != null)
             {
                 myLocation = selector.SelectedLocation;
-                this.Title = $"館浜鉄道電話 - {{myLocation.DisplayName}}";
+                this.Title = $"館浜鉄道電話 - {myLocation.DisplayName}";
                 PopulateCallList();
                 return true;
             }
@@ -404,12 +406,14 @@ namespace Tatehama_tetudou_denwa_PCclient
                     break;
                 case PhoneState.Ringing:
                     NumberDisplay.Text = "着信中";
+                    jyuwaButton.Background = brushJyuwaAo;
                     isJyuwaFlashing = true;
                     isSyuwaFlashing = true;
                     flashingTimer?.Start();
                     PlayRingingSound(); 
                     ringingTimer?.Start();
                     ShowNotification(callerName ?? "不明な発信元");
+                    incomingCallerNumber = callerName;
                     break;
             }
         }
@@ -436,7 +440,7 @@ namespace Tatehama_tetudou_denwa_PCclient
             }
             if (isJyuwaFlashing)
             {
-                jyuwaButton.Background = flashToggle ? brushJyuwaAka : brushJyuwa;
+                jyuwaButton.Background = flashToggle ? brushJyuwaAo : brushJyuwa;
             }
         }
 
@@ -499,6 +503,11 @@ namespace Tatehama_tetudou_denwa_PCclient
             {
                 PlaySfx("tori.wav");
                 isOutgoingCall = false;
+                // サーバーにAnswerCallを通知（着信時に保持した発信者番号を使う）
+                if (serverConnection != null && myLocation != null && !string.IsNullOrEmpty(incomingCallerNumber))
+                {
+                    _ = serverConnection.AnswerCall(incomingCallerNumber, myLocation.PhoneNumber);
+                }
                 SetState(PhoneState.InCall);
             }
         }
@@ -565,8 +574,6 @@ namespace Tatehama_tetudou_denwa_PCclient
                 InitializeMedia();
             }
         }
-
-
         #endregion
     }
 }

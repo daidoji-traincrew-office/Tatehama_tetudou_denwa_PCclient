@@ -1,3 +1,4 @@
+
 using System;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Threading.Tasks;
@@ -7,16 +8,18 @@ namespace Tatehama_tetudou_denwa_PCclient.Models
 {
     public class ServerConnection
     {
+        private HubConnection? _connection;
+
+        public event Action? NoAnswerReceived;
+        public event Action<string>? CallOkReceived;
+        public event Action<string>? RingingReceived;
+        public event Action? EndCallReceived;
+
         public async Task RegisterPhoneNumber(string phoneNumber)
         {
             if (_connection != null)
                 await _connection.InvokeAsync("RegisterPhoneNumber", phoneNumber);
         }
-
-        private HubConnection? _connection;
-    public event Action? NoAnswerReceived;
-    public event Action<string>? CallOkReceived;
-    public event Action<string>? RingingReceived;
 
         public async Task ConnectAsync(string url, string clientId)
         {
@@ -39,12 +42,17 @@ namespace Tatehama_tetudou_denwa_PCclient.Models
                 {
                     CallOkReceived?.Invoke(message.Substring("call_ok:".Length));
                 }
+                else if (message == "end_call")
+                {
+                    EndCallReceived?.Invoke();
+                }
                 // ...existing code...
             });
 
             await _connection.StartAsync();
             await _connection.InvokeAsync("UpdateState", clientId, PhoneState.Idle.ToString());
         }
+
 
         public async Task UpdateState(string clientId, PhoneState state)
         {
